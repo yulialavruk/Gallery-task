@@ -1,5 +1,6 @@
 import React from "react";
 import { Spinner } from "reactstrap";
+import ImageItem from "./ImageItem";
 
 export default class App extends React.Component {
   constructor() {
@@ -7,11 +8,13 @@ export default class App extends React.Component {
 
     this.state = {
       images: [],
-      spinner: true
+      spinner: true,
+      refresh: false
     };
+    this.interval = 0;
   }
 
-  componentDidMount() {
+  loadData = () => {
     fetch("https://www.reddit.com/r/aww.json")
       .then(response => response.json())
       .then(data =>
@@ -20,18 +23,42 @@ export default class App extends React.Component {
           spinner: false
         })
       );
+  };
+
+  componentDidMount() {
+    this.loadData();
   }
+  autoRefresh = () => {
+    this.setState(
+      {
+        refresh: !this.state.refresh
+      },
+      () => {
+        if (this.state.refresh) {
+          this.interval = setInterval(this.loadData, 3000);
+        } else {
+          clearInterval(this.interval);
+        }
+      }
+    );
+  };
+
   render() {
-    console.log(this.state.images);
-    const { images } = this.state;
+    const { images, refresh, spinner } = this.state;
     return (
       <div className="container">
         <div className="row justify-content-center">
-          <div className="col-8">
-            <h1>Top commented</h1>
-            {this.state.spinner ? (
-              <div>
-                <Spinner color="primary" />
+          <div className="col-10">
+            <div className="text-center">
+              <h1>Top commented</h1>
+              <button type="button" onClick={this.autoRefresh}>
+                {refresh ? "Stop auto-refresh" : "Start auto-refresh"}
+              </button>
+              {refresh && <Spinner color="primary" />}
+            </div>
+            {spinner ? (
+              <div className="text-center mt-5">
+                <Spinner width="300px" height="300px" color="primary" />
               </div>
             ) : (
               <div className="row">
@@ -40,25 +67,8 @@ export default class App extends React.Component {
                   .map((item, index) => {
                     if (item.data.post_hint === "image") {
                       return (
-                        <div className="col-4" key={index}>
-                          <div className="card">
-                            <img
-                              className="card-img-top card-img--height"
-                              src={item.data.url}
-                              alt=""
-                            />
-                            <div className="card-body">
-                              <h6 className="card-title">{item.data.title}</h6>
-                              <div className="card-text">
-                                Number of comments: {item.data.num_comments}
-                              </div>
-                              <a
-                                href={`https://www.reddit.com${item.data.permalink}`}
-                              >
-                                Link
-                              </a>
-                            </div>
-                          </div>
+                        <div className="col-4 mt-4" key={index}>
+                          <ImageItem image={item} />
                         </div>
                       );
                     } else {
