@@ -1,5 +1,6 @@
 import React from "react";
 import { Spinner } from "reactstrap";
+import Header from "./Header";
 import ImageItem from "./ImageItem";
 
 export default class App extends React.Component {
@@ -9,11 +10,18 @@ export default class App extends React.Component {
     this.state = {
       images: [],
       spinner: true,
-      refresh: false
+      refresh: false,
+      current_comments: 0
     };
     this.interval = 0;
   }
-
+  onChange = event => {
+    const name = event.target.name;
+    const value = event.target.value;
+    this.setState({
+      [name]: value
+    });
+  };
   loadData = () => {
     fetch("https://www.reddit.com/r/aww.json")
       .then(response => response.json())
@@ -44,37 +52,48 @@ export default class App extends React.Component {
   };
 
   render() {
-    const { images, refresh, spinner } = this.state;
+    const { images, refresh, spinner, current_comments } = this.state;
+    const filteredData = images
+      .filter(
+        item =>
+          item.data.post_hint === "image" &&
+          item.data.num_comments > current_comments
+      )
+      .sort((a, b) => b.data.num_comments - a.data.num_comments);
+    const someComments = filteredData.some(
+      item => item.data.num_comments >= current_comments
+    );
     return (
       <div className="container">
         <div className="row justify-content-center">
           <div className="col-10">
-            <div className="text-center">
-              <h1>Top commented</h1>
-              <button type="button" onClick={this.autoRefresh}>
-                {refresh ? "Stop auto-refresh" : "Start auto-refresh"}
-              </button>
-              {refresh && <Spinner color="primary" />}
-            </div>
+            <Header
+              autoRefresh={this.autoRefresh}
+              refresh={refresh}
+              current_comments={current_comments}
+              onChange={this.onChange}
+            />
             {spinner ? (
               <div className="text-center mt-5">
-                <Spinner width="300px" height="300px" color="primary" />
+                <Spinner color="primary" />
               </div>
             ) : (
               <div className="row">
-                {images
-                  .sort((a, b) => b.data.num_comments - a.data.num_comments)
-                  .map((item, index) => {
-                    if (item.data.post_hint === "image") {
-                      return (
-                        <div className="col-4 mt-4" key={index}>
-                          <ImageItem image={item} />
-                        </div>
-                      );
-                    } else {
-                      return false;
-                    }
-                  })}
+                {someComments ? (
+                  filteredData.map((item, index) => {
+                    return (
+                      <div className="col-4 mt-4" key={index}>
+                        <ImageItem image={item} />
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="col-12">
+                    <div className="text-center" style={{ color: "red" }}>
+                      <h3>No results found matching your criteria</h3>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
