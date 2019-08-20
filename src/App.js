@@ -3,47 +3,49 @@ import { Spinner } from "reactstrap";
 import Header from "./Header";
 import ImageItem from "./ImageItem";
 
+const RELOAD_TIME = 3000;
+
 export default class App extends React.Component {
   constructor() {
     super();
 
     this.state = {
       images: [],
-      spinner: true,
-      refresh: false,
+      isLoading: true,
+      isRefresh: false,
       current_comments: 0
     };
-    this.interval = 0;
   }
+
+  componentDidMount() {
+    this.loadData();
+  }
+
   onChange = event => {
-    const name = event.target.name;
-    const value = event.target.value;
     this.setState({
-      [name]: value
+      [event.target.name]: event.target.value
     });
   };
+
   loadData = () => {
     fetch("https://www.reddit.com/r/aww.json")
       .then(response => response.json())
       .then(data =>
         this.setState({
           images: data.data.children,
-          spinner: false
+          isLoading: false
         })
       );
   };
 
-  componentDidMount() {
-    this.loadData();
-  }
   autoRefresh = () => {
     this.setState(
       {
-        refresh: !this.state.refresh
+        isRefresh: !this.state.isRefresh
       },
       () => {
-        if (this.state.refresh) {
-          this.interval = setInterval(this.loadData, 3000);
+        if (this.state.isRefresh) {
+          this.interval = setInterval(this.loadData, RELOAD_TIME);
         } else {
           clearInterval(this.interval);
         }
@@ -51,39 +53,37 @@ export default class App extends React.Component {
     );
   };
 
-  render() {
-    const { images, refresh, spinner, current_comments } = this.state;
-    const filteredData = images
-      .filter(
-        item =>
-          item.data.post_hint === "image" &&
-          item.data.num_comments > current_comments
-      )
+  getFilteredData = () => {
+    const filteredData = this.state.images
+      .filter(item => item.data.num_comments > this.state.current_comments)
       .sort((a, b) => b.data.num_comments - a.data.num_comments);
-    const someComments = filteredData.some(
-      item => item.data.num_comments >= current_comments
-    );
+    return filteredData;
+  };
+
+  render() {
+    const { isRefresh, isLoading, current_comments } = this.state;
+    const filteredData = this.getFilteredData();
     return (
       <div className="container">
         <div className="row justify-content-center">
           <div className="col-10">
             <Header
               autoRefresh={this.autoRefresh}
-              refresh={refresh}
+              refresh={isRefresh}
               current_comments={current_comments}
               onChange={this.onChange}
             />
-            {spinner ? (
+            {isLoading ? (
               <div className="text-center mt-5">
                 <Spinner color="primary" />
               </div>
             ) : (
               <div className="row">
-                {someComments ? (
-                  filteredData.map((item, index) => {
+                {filteredData.length > 0 ? (
+                  filteredData.map((post, index) => {
                     return (
                       <div className="col-4 mt-4" key={index}>
-                        <ImageItem image={item} />
+                        <ImageItem item={post.data} />
                       </div>
                     );
                   })
